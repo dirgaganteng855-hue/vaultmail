@@ -73,7 +73,20 @@ Required environment variables (choose one storage backend):
 
 ### Option A: Cloudflare D1 (recommended for Cloudflare deploys)
 
-- Set Worker/Page binding `DB` to your D1 database in `wrangler.toml` / `wrangler.worker.toml`.
+Bind your D1 database with binding name **`DB`**:
+
+- **Cloudflare Pages Dashboard**: Project → Settings → Functions → D1 bindings → Add binding (`DB`).
+- **If dashboard Add button is disabled / not working**: use Wrangler CLI:
+  ```bash
+  # Get your D1 database ID
+  npx wrangler d1 list
+
+  # Attach D1 binding to your Pages project
+  npx wrangler pages project d1 set --project-name <YOUR_PAGES_PROJECT> --binding DB --database-id <YOUR_D1_DATABASE_ID>
+  ```
+
+> This repo intentionally does not hardcode a D1 `database_id` in `wrangler.toml`, so you can bind D1 per-project without editing committed config each time.
+
 - Optional env: `STORAGE_BACKEND=d1` (forces D1 as primary backend).
 
 ### Option B: MongoDB (Vercel/Node-compatible)
@@ -88,7 +101,7 @@ Other optional env:
 
 ### Create D1 schema (first time)
 
-After creating your D1 DB and binding it as `DB`, run:
+After creating your D1 DB and binding it as `DB` (dashboard or CLI), run:
 
 ```bash
 npx wrangler d1 execute vaultmail --remote --command "CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value_json TEXT NOT NULL, expires_at INTEGER);"

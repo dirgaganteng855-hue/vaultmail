@@ -1,7 +1,7 @@
-import { MongoClient } from 'mongodb';
-
 const uri = process.env.MONGODB_URI || '';
 const dbName = process.env.MONGODB_DB || 'vaultmail';
+
+type MongoClient = import('mongodb').MongoClient;
 
 let clientPromise: Promise<MongoClient> | null = null;
 
@@ -10,8 +10,11 @@ const getClient = () => {
     throw new Error('MONGODB_URI is not set');
   }
   if (!clientPromise) {
-    const client = new MongoClient(uri);
-    clientPromise = client.connect();
+    clientPromise = (async () => {
+      const { MongoClient } = await import('mongodb');
+      const client = new MongoClient(uri);
+      return client.connect();
+    })();
   }
   return clientPromise;
 };

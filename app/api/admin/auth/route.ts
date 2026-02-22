@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { storage } from '@/lib/storage';
 import { ADMIN_SESSION_COOKIE, ADMIN_SESSION_PREFIX } from '@/lib/admin-auth';
 import {
@@ -7,6 +6,7 @@ import {
   registerRateLimitFailure,
   resetRateLimit
 } from '@/lib/auth-rate-limit';
+export const runtime = 'edge';
 
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'admin-login');

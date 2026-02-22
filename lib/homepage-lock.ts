@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { storage } from '@/lib/storage';
 import { HOMEPAGE_LOCK_SETTINGS_KEY } from '@/lib/admin-auth';
 
@@ -10,8 +9,17 @@ export type HomepageLockSettings = {
   updatedAt?: string;
 };
 
-export const hashHomepagePassword = (password: string) =>
-  crypto.createHash('sha256').update(password).digest('hex');
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+
+export const hashHomepagePassword = async (password: string) => {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(password)
+  );
+
+  return toHex(new Uint8Array(digest));
+};
 
 export const parseHomepageLockSettings = (
   value: unknown

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { refreshDomainExpiration } from '@/lib/domain-expiration';
 import { getStoredDomains } from '@/lib/domains';
+export const runtime = 'edge';
 
 const getCronSecret = () => process.env.CRON_SECRET?.trim();
 

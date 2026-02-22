@@ -8,11 +8,19 @@ type MongoDb = import('mongodb').Db;
 
 let clientPromise: Promise<MongoClient> | null = null;
 let warnedMissingMongo = false;
+let warnedMongoConnectionFailure = false;
 
 const warnMissingMongo = () => {
   if (warnedMissingMongo || uri) return;
   warnedMissingMongo = true;
   console.warn('MONGODB_URI is not set. Storage operations will run in no-op mode.');
+};
+
+const warnMongoConnectionFailure = (error: unknown) => {
+  if (warnedMongoConnectionFailure) return;
+  warnedMongoConnectionFailure = true;
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`MongoDB connection failed. Storage operations will run in no-op mode. ${message}`);
 };
 
 const getClient = () => {
@@ -30,12 +38,17 @@ const getClient = () => {
 };
 
 const getDb = async (): Promise<MongoDb | null> => {
-  const client = await getClient();
-  if (!client) {
-    warnMissingMongo();
+  try {
+    const client = await getClient();
+    if (!client) {
+      warnMissingMongo();
+      return null;
+    }
+    return client.db(dbName);
+  } catch (error) {
+    warnMongoConnectionFailure(error);
     return null;
   }
-  return client.db(dbName);
 };
 
 type StoredValue = unknown;

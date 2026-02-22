@@ -2,12 +2,20 @@ const uri = process.env.MONGODB_URI || '';
 const dbName = process.env.MONGODB_DB || 'vaultmail';
 
 type MongoClient = import('mongodb').MongoClient;
+type MongoDb = import('mongodb').Db;
 
 let clientPromise: Promise<MongoClient> | null = null;
+let warnedMissingMongo = false;
+
+const warnMissingMongo = () => {
+  if (warnedMissingMongo || uri) return;
+  warnedMissingMongo = true;
+  console.warn('MONGODB_URI is not set. Storage operations will run in no-op mode.');
+};
 
 const getClient = () => {
   if (!uri) {
-    throw new Error('MONGODB_URI is not set');
+    return null;
   }
   if (!clientPromise) {
     clientPromise = (async () => {
@@ -19,8 +27,12 @@ const getClient = () => {
   return clientPromise;
 };
 
-const getDb = async () => {
+const getDb = async (): Promise<MongoDb | null> => {
   const client = await getClient();
+  if (!client) {
+    warnMissingMongo();
+    return null;
+  }
   return client.db(dbName);
 };
 
@@ -50,6 +62,7 @@ const isExpired = (expiresAt?: Date | null) =>
 
 const cleanupExpiredList = async (key: string) => {
   const db = await getDb();
+  if (!db) return null;
   const listMeta = db.collection<ListMetaDocument>('list_meta');
   const listItems = db.collection<ListItemDocument>('list_items');
   const meta = await listMeta.findOne({ _id: key });
@@ -72,6 +85,7 @@ const patternToRegex = (pattern: string) => {
 export const storage = {
   async get(key: string) {
     const db = await getDb();
+    if (!db) return null;
     const kv = db.collection<KeyValueDocument>('kv_store');
     const doc = await kv.findOne({ _id: key });
     if (!doc) return null;
@@ -84,6 +98,7 @@ export const storage = {
 
   async set(key: string, value: StoredValue, options?: { ex?: number }) {
     const db = await getDb();
+    if (!db) return;
     const kv = db.collection<KeyValueDocument>('kv_store');
     const expiresAt = options?.ex
       ? new Date(Date.now() + options.ex * 1000)
@@ -97,6 +112,7 @@ export const storage = {
 
   async exists(key: string) {
     const db = await getDb();
+    if (!db) return 0;
     const kv = db.collection<KeyValueDocument>('kv_store');
     const doc = await kv.findOne({ _id: key }, { projection: { expiresAt: 1 } });
     if (!doc) return 0;
@@ -109,12 +125,14 @@ export const storage = {
 
   async del(key: string) {
     const db = await getDb();
+    if (!db) return;
     const kv = db.collection<KeyValueDocument>('kv_store');
     await kv.deleteOne({ _id: key });
   },
 
   async expire(key: string, seconds: number) {
     const db = await getDb();
+    if (!db) return;
     const kv = db.collection<KeyValueDocument>('kv_store');
     const listMeta = db.collection<ListMetaDocument>('list_meta');
     const expiresAt = new Date(Date.now() + seconds * 1000);
@@ -126,6 +144,7 @@ export const storage = {
 
   async lpush(key: string, value: StoredValue) {
     const db = await getDb();
+    if (!db) return;
     const listMeta = db.collection<ListMetaDocument>('list_meta');
     const listItems = db.collection<ListItemDocument>('list_items');
     await cleanupExpiredList(key);
@@ -143,6 +162,7 @@ export const storage = {
 
   async lrange(key: string, start: number, end: number) {
     const db = await getDb();
+    if (!db) return [];
     const listItems = db.collection<ListItemDocument>('list_items');
     const meta = await cleanupExpiredList(key);
     if (!meta) return [];
@@ -162,6 +182,7 @@ export const storage = {
 
   async llen(key: string) {
     const db = await getDb();
+    if (!db) return 0;
     const listItems = db.collection<ListItemDocument>('list_items');
     const meta = await cleanupExpiredList(key);
     if (!meta) return 0;
@@ -170,6 +191,7 @@ export const storage = {
 
   async keys(pattern: string) {
     const db = await getDb();
+    if (!db) return [];
     const listMeta = db.collection<ListMetaDocument>('list_meta');
     const listItems = db.collection<ListItemDocument>('list_items');
     const regex = patternToRegex(pattern);
